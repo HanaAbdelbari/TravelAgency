@@ -29,7 +29,7 @@ The **Travel Agency System** is a comprehensive backend application designed for
 ## Technologies Used  
 - **Backend Framework:** Spring Boot  
 - **Programming Language:** Java  
-- **Database:** MySQL (or any relational database of your choice)  
+- **Database:** MySQL   
 - **API Testing:** Postman  
 - **Email Notifications:** Mock email handling for testing purposes.  
 
