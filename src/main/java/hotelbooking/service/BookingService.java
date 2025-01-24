@@ -14,8 +14,8 @@ import java.time.temporal.ChronoUnit;
 
 @Service
 public class BookingService {
-    @Autowired
 
+    @Autowired
     private UserRepository userRepository;
 
     @Autowired
@@ -30,8 +30,8 @@ public class BookingService {
         return bookingRepository.findByUserId(userId);
     }
 
-    // Book a room for a user
-    public Booking bookRoomForUser(Long userId, Long roomId) {
+    // Book a room for a user with check-in and check-out dates
+    public String bookRoomForUser(Long userId, Long roomId, LocalDate checkInDate, LocalDate checkOutDate) {
         Optional<User> user = userRepository.findById(userId);
 
         // Check if the user exists and room is available for booking
@@ -42,16 +42,17 @@ public class BookingService {
                 Booking booking = new Booking();
                 booking.setUser(user.get());
                 booking.setRoom(bookedRoom);
+                booking.setCheckInDate(checkInDate);  // Set check-in date
+                booking.setCheckOutDate(checkOutDate);  // Set check-out date
+                booking.setCancelled(false);  // Set isCancelled to false by default
 
-                // Save the booking to the database and add it to the user's list
+                // Save the booking to the database
                 bookingRepository.save(booking);
-                user.get().getBookings().add(booking); // Add the booking to the user's list
-                userRepository.save(user.get()); // Update the user with the new booking
 
-                return booking; // Return the created booking
+                return "Booking done for " + user.get().getUsername();  // Return confirmation message
             }
         }
-        return null; // Return null if room is not available or user is not found
+        return "Room is not available or user not found";  // Error message if room unavailable or user not found
     }
 
     // Method to calculate the duration of stay in days

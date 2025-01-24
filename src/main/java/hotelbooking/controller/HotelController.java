@@ -22,7 +22,7 @@ public class HotelController {
             List<Hotel> hotels = hotelService.getAllHotels();
             return new ResponseEntity<>(hotels, HttpStatus.OK);
         } catch (Exception e) {
-            // Handle any potential errors
+            // If any error occurs, return a 500 Internal Server Error
             return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
@@ -30,13 +30,14 @@ public class HotelController {
     // Get hotel by ID (fetch from internal DB)
     @GetMapping("/{id}")
     public ResponseEntity<Hotel> getHotelById(@PathVariable Long id) {
-        try {
-            Hotel hotel = hotelService.getHotelById(id);
-            return new ResponseEntity<>(hotel, HttpStatus.OK);
-        } catch (Exception e) {
-            // Return 404 if the hotel is not found
+        Hotel hotel = hotelService.getHotelById(id);
+
+        if (hotel == null) {
+            // If no hotel is found, return 404 Not Found
             return new ResponseEntity<>(HttpStatus.NOT_FOUND);
         }
+
+        return new ResponseEntity<>(hotel, HttpStatus.OK);
     }
 
     // Add a new hotel (manually for admin use)
@@ -46,7 +47,7 @@ public class HotelController {
             Hotel addedHotel = hotelService.addHotel(hotel);
             return new ResponseEntity<>(addedHotel, HttpStatus.CREATED);
         } catch (Exception e) {
-            // Handle errors during hotel creation
+            // If any error occurs, return a 400 Bad Request
             return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
         }
     }
@@ -54,13 +55,14 @@ public class HotelController {
     // Update a hotel by ID
     @PutMapping("/{id}")
     public ResponseEntity<Hotel> updateHotel(@PathVariable Long id, @RequestBody Hotel updatedHotel) {
-        try {
-            Hotel updated = hotelService.updateHotel(id, updatedHotel);
-            return new ResponseEntity<>(updated, HttpStatus.OK);
-        } catch (Exception e) {
-            // Return 404 if the hotel is not found
+        Hotel updated = hotelService.updateHotel(id, updatedHotel);
+
+        if (updated == null) {
+            // If hotel is not found or could not be updated, return 404 Not Found
             return new ResponseEntity<>(HttpStatus.NOT_FOUND);
         }
+
+        return new ResponseEntity<>(updated, HttpStatus.OK);
     }
 
     // Delete a hotel by ID (manually for admin use)
@@ -70,7 +72,7 @@ public class HotelController {
             hotelService.deleteHotel(id);
             return new ResponseEntity<>(HttpStatus.NO_CONTENT); // Success response without content
         } catch (Exception e) {
-            // Handle errors (if the hotel doesn't exist)
+            // If the hotel cannot be found or deleted, return 404 Not Found
             return new ResponseEntity<>(HttpStatus.NOT_FOUND);
         }
     }

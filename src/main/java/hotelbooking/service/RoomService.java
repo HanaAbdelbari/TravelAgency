@@ -28,99 +28,130 @@ public class RoomService {
 
     private final String externalApiUrl = "https://4f6d45b1-e259-404d-a109-5e92726e0fb0.mock.pstmn.io/rooms";
 
-    /// Fetch all rooms from external API and store them in the database if not present
+    /**
+     * Fetch all rooms from the database, or if no rooms exist, fetch them from an external API
+     */
     @Transactional
     public List<Room> getAllRooms() {
         // Fetch rooms from the database first
         List<Room> roomsInDb = roomRepository.findAll();
 
-        for ( Room r : roomsInDb){
-            System.out.println(r.getType());}
-
-        // If no rooms are present in the database, fetch from external API
-        if (roomsInDb.isEmpty() ) {
-
-            System.out.println("-----------------------");
-            // Fetch rooms from the external API
+        // If no rooms are found in the database, fetch from external API
+        if (roomsInDb.isEmpty()) {
             Room[] roomsFromApi = restTemplate.getForObject(externalApiUrl, Room[].class);
 
-
-
-
-
             if (roomsFromApi != null) {
-                // Iterate over the rooms and set the appropriate fields before saving
+                // Process rooms from the API and associate with hotels
                 for (Room room : roomsFromApi) {
-                    // Ensure valid room type and availability
-                    if (room.getType() == null || room.getType().isEmpty()) {
-                        room.setType("Unknown");  // Default value if missing
+                    normalizeRoomType(room);
+
+                    // Link room to hotel based on hotel_id
+                    if (room.getHotel() != null && room.getHotel().getId() != null) {
+                        Optional<Hotel> hotel = hotelRepository.findById(room.getHotel().getId());
+                        hotel.ifPresent(room::setHotel); // Link room to the found hotel
                     }
-
-
-                    //Set the hotel association if needed (assuming you have a way to link rooms to hotels)
-                    //Optional<Hotel> hotel = hotelRepository.findById(room.getHotel());
-                    //hotel.ifPresent(room::setHotel);
                 }
 
-                // Save rooms fetched from API into the database
+                // Save rooms from API to the database
                 roomRepository.saveAll(Arrays.asList(roomsFromApi));
             }
-
-            return Arrays.asList(roomsFromApi); // Return rooms from API
+            return Arrays.asList(roomsFromApi); // Return the rooms fetched from API
         }
 
-        return roomsInDb; // Return rooms from the database
+        return roomsInDb; // Return rooms from the database if available
     }
 
-    // Add a new room with validation for roomType
-    public Room addRoom(Room room) {
-        // Validate that roomType is not null or empty
-        if (room.getType() == null || room.getType().isEmpty()) {
-            throw new IllegalArgumentException("Room type cannot be null or empty");
+    // Method to find hotel by ID
+    public Hotel findHotelById(Long hotelId) {
+        return hotelRepository.findById(hotelId).orElse(null); // Returns the hotel if found, otherwise null
+    }
+
+    /**
+     * Add a new room, ensuring it's linked to a hotel
+     */
+    public Room addRoom(Room room, Long hotelId) {
+        // Fetch hotel by hotelId
+        Optional<Hotel> hotelOptional = hotelRepository.findById(hotelId);
+        if (hotelOptional.isEmpty()) {
+            throw new IllegalArgumentException("Hotel with ID " + hotelId + " not found");
         }
 
-        // If the roomType is valid, save the room
+        // Associate room with the fetched hotel
+        room.setHotel(hotelOptional.get());
+
+        // Normalize room type
+        normalizeRoomType(room);
+
+        // Save and return the room
         return roomRepository.save(room);
     }
 
-    // Search rooms by type (Single, Double, Family) and hotel
+    /**
+     * Search rooms by type and hotel ID
+     */
     public List<Room> searchRooms(String roomType, Long hotelId) {
         Optional<Hotel> hotel = hotelRepository.findById(hotelId);
         return hotel.map(h -> roomRepository.findByRoomTypeAndHotel(roomType, h)).orElse(null);
     }
 
-    // Get room details by room ID
+    /**
+     * Get room details by room ID
+     */
     public Room getRoomById(Long roomId) {
         return roomRepository.findById(roomId).orElse(null); // Returns null if room not found
     }
 
-    // Check if the room is available for booking
+    /**
+     * Check room availability by room ID
+     */
     public boolean checkRoomAvailability(Long roomId) {
         Optional<Room> room = roomRepository.findById(roomId);
-        return room.isPresent() && room.get().isAvailable(); // Check the 'available' field
+        return room.isPresent() && room.get().isAvailable(); // Check availability
     }
 
-    // Mark the room as booked
+    /**
+     * Mark the room as booked (unavailable)
+     */
     public Room markRoomAsBooked(Long roomId) {
         Optional<Room> room = roomRepository.findById(roomId);
         if (room.isPresent() && room.get().isAvailable()) {
             Room bookedRoom = room.get();
-            bookedRoom.setAvailable(false);  // Set room as unavailable
-            roomRepository.save(bookedRoom); // Save changes
+            bookedRoom.setAvailable(false); // Mark room as unavailable
+            roomRepository.save(bookedRoom); // Save updated room
             return bookedRoom;
         }
         return null; // Return null if room not found or already booked
     }
 
-    // Mark the room as available (on cancellation)
+    /**
+     * Mark the room as available (on cancellation)
+     */
     public Room markRoomAsAvailable(Long roomId) {
         Optional<Room> roomOptional = roomRepository.findById(roomId);
         if (roomOptional.isPresent()) {
             Room room = roomOptional.get();
-            room.setAvailable(true);  // Set room as available
-            roomRepository.save(room); // Save changes
-            return room;  // Return the updated room
+            room.setAvailable(true); // Mark room as available
+            roomRepository.save(room); // Save updated room
+            return room;
         }
-        return null;  // Return null if room not found
+        return null; // Return null if room not found
+    }
+
+    /**
+     * Helper method to normalize and validate room types
+     */
+    private void normalizeRoomType(Room room) {
+        if (room.getRoomType() == null || room.getRoomType().isEmpty()) {
+            room.setRoomType("Unknown");  // Default value if missing
+        } else {
+            // Normalize room type to a standard format (capitalize first letter)
+            String normalizedRoomType = room.getRoomType().trim().toLowerCase();
+            if (normalizedRoomType.equals("single") || normalizedRoomType.equals("double") ||
+                    normalizedRoomType.equals("family")) {
+                room.setRoomType(Character.toUpperCase(normalizedRoomType.charAt(0)) + normalizedRoomType.substring(1));
+            } else {
+                room.setRoomType("Unknown");  // Set to Unknown if not a valid type
+            }
+        }
     }
 }

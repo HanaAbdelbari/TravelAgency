@@ -1,17 +1,17 @@
 package hotelbooking.controller;
 
 import hotelbooking.model.Booking;
-import hotelbooking.model.Room;
 import hotelbooking.service.BookingService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
+import java.time.LocalDate;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/bookings")
+@RequestMapping("/bookings")
 public class BookingController {
 
     @Autowired
@@ -30,12 +30,17 @@ public class BookingController {
 
     // Book a room for a user
     @PostMapping("/user/{userId}/room/{roomId}")
-    public ResponseEntity<Booking> bookRoomForUser(@PathVariable Long userId, @PathVariable Long roomId) {
-        Booking booking = bookingService.bookRoomForUser(userId, roomId);
-        if (booking != null) {
-            return new ResponseEntity<>(booking, HttpStatus.CREATED);
+    public ResponseEntity<String> bookRoomForUser(
+            @PathVariable Long userId,
+            @PathVariable Long roomId,
+            @RequestParam("checkInDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate checkInDate,
+            @RequestParam("checkOutDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate checkOutDate) {
+
+        String responseMessage = bookingService.bookRoomForUser(userId, roomId, checkInDate, checkOutDate);
+        if (responseMessage.startsWith("Booking done")) {
+            return new ResponseEntity<>(responseMessage, HttpStatus.CREATED); // Booking successful
         } else {
-            return new ResponseEntity<>(HttpStatus.BAD_REQUEST); // Room not available or user not found
+            return new ResponseEntity<>(responseMessage, HttpStatus.BAD_REQUEST); // Room not available or user not found
         }
     }
 

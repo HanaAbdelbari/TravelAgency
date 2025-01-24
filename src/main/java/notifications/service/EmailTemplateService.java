@@ -1,4 +1,4 @@
-package notifications.service;
+package notifications .service;
 
 import org.springframework.stereotype.Service;
 
